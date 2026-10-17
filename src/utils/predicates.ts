@@ -358,13 +358,13 @@ function isPowerOfTwo(n: number): boolean {
 
 /**
  * DuplePartitioned: checks whether the composition (circular IOI sequence)
- * is "duple-partitioned".
+ * is "duple-partitioned" in either the forward or reversed direction.
  *
- * Algorithm (ported from Java OnCompositions.duplePartitioned):
- * Walk the interval sequence left-to-right, maintaining a running sum (accumulator).
- * Whenever the accumulator is NOT a power of two, the current interval must not
- * exceed the previous one (non-increasing constraint). When the accumulator IS
- * a power of two, the constraint resets and the next interval may be any size.
+ * Each direction uses the rule ported from Java OnCompositions.duplePartitioned:
+ * walk the entire interval sequence, maintaining a running sum (accumulator).
+ * An interval may exceed its predecessor only when the preceding sum is a power
+ * of two. The sum is never reset. At least one complete direction must pass;
+ * directions cannot be chosen separately at individual boundaries.
  *
  * @param onsets Array of onset positions (should be sorted and within [0, L))
  * @param L Total length of the rhythm cycle
@@ -372,6 +372,10 @@ function isPowerOfTwo(n: number): boolean {
  */
 export function isDuplePartitioned(onsets: number[], L: number): boolean {
   const intervals = circularIntervals(onsets, L)
+  return isDuplePartitionedSequence(intervals) || isDuplePartitionedSequence(intervals.reverse())
+}
+
+function isDuplePartitionedSequence(intervals: number[]): boolean {
   if (intervals.length < 2) return true
 
   let acc = intervals[0]

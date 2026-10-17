@@ -272,4 +272,23 @@ describe('isDuplePartitioned', () => {
     // acc=1 (pow2) -> no constraint -> true
     expect(isDuplePartitioned([0, 1], 4)).toBe(true)
   })
+
+  it('accepts rhythms that pass in only one direction', () => {
+    // [3,2,1] passes forward; [1,2,3] passes only when reversed.
+    expect(isDuplePartitioned([0, 3, 5], 6)).toBe(true)
+    expect(isDuplePartitioned([0, 1, 3], 6)).toBe(true)
+  })
+
+  it('allows power-of-two boundary exceptions in the reversed sequence', () => {
+    // [1,2,4,1] fails forward at elapsed time 3.
+    // Its reverse [1,4,2,1] passes: the increase occurs at elapsed time 1.
+    expect(isDuplePartitioned([0, 1, 3, 7], 8)).toBe(true)
+    expect(isDuplePartitioned([0, 1, 5, 7], 8)).toBe(true)
+  })
+
+  it('rejects rhythms when neither complete direction passes', () => {
+    // [3,2,3] fails in both directions at elapsed time 5.
+    // Choosing a direction separately at each boundary would incorrectly pass.
+    expect(isDuplePartitioned([0, 3, 5], 8)).toBe(false)
+  })
 })

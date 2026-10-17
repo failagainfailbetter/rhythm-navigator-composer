@@ -175,6 +175,10 @@ npx rhythm-navigator mcp
 
 Available predicate IDs: `isomorphic`, `maximallyEven`, `rop23`, `odd-intervals`, `no-antipodes`, `lowEntropy`, `noGaps`, `relativelyFlat`, `duplePartitioned`.
 
+The `duplePartitioned` predicate accepts a circular interval sequence if the complete
+forward or reversed sequence passes: an interval may increase only when the sum of
+all preceding intervals in that direction is a power of two.
+
 ## MCP Server (VS Code / Copilot Chat integration)
 
 The CLI includes an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that exposes rhythm generation tools to any MCP-compatible host — including VS Code with GitHub Copilot Chat.

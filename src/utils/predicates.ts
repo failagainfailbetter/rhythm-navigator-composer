@@ -34,9 +34,10 @@ export function circularIntervals(onsets: number[], L: number): number[] {
 /**
  * Check if onsets are maximally even (Euclidean spacing).
  * 
- * A rhythm is maximally even if the IOIs are distributed as evenly as possible,
- * meaning they can only take values floor(L/k) and ceil(L/k), where k is the number of onsets.
- * The number of ceil(L/k) intervals should be exactly L % k.
+ * For every m from 1 to k-1, the clockwise span of m consecutive onset
+ * intervals must be floor(m*L/k) or ceil(m*L/k). Checking only adjacent
+ * intervals is insufficient: [2,2,3,3] has balanced gap counts but is not
+ * maximally even, whereas [2,3,2,3] is.
  * 
  * @param onsets Array of onset positions (should be sorted and within [0, L))
  * @param L Total length of the rhythm cycle
@@ -53,29 +54,16 @@ export function isMaximallyEven(onsets: number[], L: number): boolean {
   }
 
   const k = onsets.length
-  const intervals = circularIntervals(onsets, L)
-  
-  const floorValue = Math.floor(L / k)
-  const ceilValue = Math.ceil(L / k)
-  const expectedCeilCount = L % k
-  
-  // Count occurrences of each interval type
-  let floorCount = 0
-  let ceilCount = 0
-  
-  for (const interval of intervals) {
-    if (interval === floorValue) {
-      floorCount++
-    } else if (interval === ceilValue) {
-      ceilCount++
-    } else {
-      // Found an interval that's neither floor nor ceil value
-      return false
+  for (let m = 1; m < k; m++) {
+    const lower = Math.floor(m * L / k)
+    const upper = Math.ceil(m * L / k)
+    for (let i = 0; i < k; i++) {
+      const j = i + m
+      const span = onsets[j % k] - onsets[i] + (j >= k ? L : 0)
+      if (span !== lower && span !== upper) return false
     }
   }
-  
-  // Check if the counts match the expected maximally even distribution
-  return ceilCount === expectedCeilCount && floorCount === (k - expectedCeilCount)
+  return true
 }
 
 /**
@@ -293,6 +281,66 @@ export function intervalVector(onsets: number[], L: number): number[] {
     vec[i - 1] = k
   }
   return vec
+}
+
+/**
+ * Erdős-deep: the positive shortest-distance multiplicities are exactly
+ * 1, 2, ..., k-1, each appearing once. Empty and singleton rhythms pass
+ * vacuously, as in the mathematical definition; every two-onset set passes.
+ * Onsets must be distinct, sorted, and within [0, L), with positive integer L.
+ */
+export function isErdosDeep(onsets: number[], L: number): boolean {
+  if (onsets.length < 2) return true
+  const counts = intervalVector(onsets, L).filter((count) => count > 0)
+  if (counts.length !== onsets.length - 1) return false
+  const seen = new Set(counts)
+  for (let count = 1; count < onsets.length; count++) {
+    if (!seen.has(count)) return false
+  }
+  return true
+}
+
+/**
+ * Winograd-deep: all bins of the shortest-distance interval vector have
+ * distinct multiplicities, including zero bins (at most one may be zero).
+ * Uses the same onset/cycle contract as isErdosDeep.
+ */
+export function isWinogradDeep(onsets: number[], L: number): boolean {
+  const counts = intervalVector(onsets, L)
+  return new Set(counts).size === counts.length
+}
+
+/**
+ * True if a reflection x -> (a-x) mod L preserves the onset set for some a.
+ * This includes axes through pulses and between pulses. Empty and singleton
+ * rhythms are symmetric. Uses the same onset/cycle contract as isErdosDeep.
+ */
+export function isReflectionSymmetric(onsets: number[], L: number): boolean {
+  if (onsets.length < 2) return true
+  const onsetSet = new Set(onsets)
+  // Any axis must map the first onset onto another onset: only k candidates.
+  for (const target of onsets) {
+    const axis = onsets[0] + target
+    if (onsets.every((onset) => onsetSet.has((axis - onset + L) % L))) return true
+  }
+  return false
+}
+
+/**
+ * Primitive: no nonzero rotation smaller than L preserves the onset set.
+ * Empty/full rhythms have period 1, so are primitive only when L=1.
+ * Uses the same onset/cycle contract as isErdosDeep.
+ */
+export function isPrimitive(onsets: number[], L: number): boolean {
+  if (onsets.length === 0 || onsets.length === L) return L === 1
+  const onsetSet = new Set(onsets)
+  // The least period divides L and moves the first onset to another onset.
+  for (let i = 1; i < onsets.length; i++) {
+    const shift = onsets[i] - onsets[0]
+    if (L % shift !== 0 || (onsets.length * shift) % L !== 0) continue
+    if (onsets.every((onset) => onsetSet.has((onset + shift) % L))) return false
+  }
+  return true
 }
 
 /**

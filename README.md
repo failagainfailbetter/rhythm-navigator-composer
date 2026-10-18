@@ -33,6 +33,8 @@ Generator and library
 - Shadow-contour isomorphism filter (canonical vs shadow canonical contour under the same invariances)
 - Music-theory predicates and oddities:
 	- Maximally even (Euclidean)
+	- Erdős-deep and Winograd-deep interval multiplicities
+	- Reflection-symmetric and primitive (non-repeating)
 	- ROP {2,3}, Odd-interval oddity, No antipodal pairs
 	- Low entropy (bounded IOI-entropy)
 	- No gaps (contiguous non-zero interval-vector bins)
@@ -173,7 +175,24 @@ npx rhythm-navigator mcp
 | `--max-attempts <n>` | *(sample only)* Maximum random trials | `1000000` |
 | `--pretty` | Pretty-print JSON output | off |
 
-Available predicate IDs: `isomorphic`, `maximallyEven`, `rop23`, `odd-intervals`, `no-antipodes`, `lowEntropy`, `noGaps`, `relativelyFlat`, `duplePartitioned`.
+Available predicate IDs: `isomorphic`, `maximallyEven`, `rop23`, `odd-intervals`, `no-antipodes`, `lowEntropy`, `noGaps`, `relativelyFlat`, `duplePartitioned`, `erdosDeep`, `winogradDeep`, `reflectionSymmetric`, `primitive`.
+
+The `maximallyEven` predicate checks every span of consecutive circular onset
+intervals: each m-interval span must equal floor(m × L / k) or ceil(m × L / k),
+where L is the cycle length and k is the onset count. Adjacent gap sizes alone
+are insufficient: `[2,2,3,3]` fails, while `[2,3,2,3]` passes. Empty rhythms fail;
+single-onset rhythms pass.
+
+Additional structural predicates (independent of meter and contour settings):
+
+| ID | Acceptance rule |
+|---|---|
+| `erdosDeep` | The positive shortest-distance interval-vector counts are exactly 1 through k−1, once each. Empty and singleton rhythms pass vacuously; every two-onset rhythm passes. |
+| `winogradDeep` | All shortest-distance interval-vector counts are distinct, including zero bins. At most one bin may be zero; vectors with zero or one bin pass vacuously. |
+| `reflectionSymmetric` | Some reflection x → (a−x) mod L preserves the actual onset set, including axes between pulses. Empty and singleton rhythms pass. |
+| `primitive` | No rotation by 1 through L−1 pulses preserves the onset set. Empty and all-onset rhythms pass only for L=1; singleton rhythms always pass. |
+
+Deepness follows [The Distance Geometry of Deep Rhythms and Scales](https://cgm.cs.mcgill.ca/~godfried/publications/deep.rhythms.cccg05.pdf).
 
 The `duplePartitioned` predicate accepts a circular interval sequence if the complete
 forward or reversed sequence passes: an interval may increase only when the sum of

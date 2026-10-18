@@ -5,7 +5,12 @@ import {
   hasROP23, 
   hasOddIntervalsOddity, 
   noAntipodalPairs,
-  isDuplePartitioned
+  isDuplePartitioned,
+  intervalVector,
+  isErdosDeep,
+  isWinogradDeep,
+  isReflectionSymmetric,
+  isPrimitive
 } from './predicates'
 
 describe('circularIntervals', () => {
@@ -85,8 +90,9 @@ describe('isMaximallyEven', () => {
     
     // Example: 4 onsets in 14 units - floor(14/4)=3, ceil(14/4)=4, 14%4=2
     // So we need exactly 2 intervals of size 4 and 2 intervals of size 3
-    // But [0,3,6,10] gives intervals [3,3,4,4] which is correct
-    // Let's use [0,2,6,10] which gives [2,4,4,4] - wrong because 2 ≠ floor(3) or ceil(4)
+    // [3,3,4,4] also fails: the longer gaps must be distributed evenly.
+    expect(isMaximallyEven([0, 3, 6, 10], 14)).toBe(false)
+    // [2,4,4,4] fails even the adjacent-gap check.
     expect(isMaximallyEven([0, 2, 6, 10], 14)).toBe(false)
   })
 
@@ -96,8 +102,7 @@ describe('isMaximallyEven', () => {
     expect(isMaximallyEven([0, 3, 5], 8)).toBe(true)
     
     // E(5,8) - 5 onsets in 8 units
-    // Should have intervals [2,1,2,1,2] or rotations - but this would have interval 1 which isn't floor(8/5)=1 or ceil(8/5)=2
-    // Actually floor(8/5)=1, ceil(8/5)=2, 8%5=3, so we need 3 intervals of size 2 and 2 intervals of size 1
+    // Three intervals of size 2 and two of size 1, distributed evenly.
     expect(isMaximallyEven([0, 1, 3, 4, 6], 8)).toBe(true)
     
     // E(5,12) - 5 onsets in 12 units
@@ -123,9 +128,133 @@ describe('isMaximallyEven', () => {
     // 7 onsets in 16 units: floor(16/7)=2, ceil(16/7)=3, 16%7=2
     // Need 2 intervals of size 3 and 5 intervals of size 2
     // Total: 2*3 + 5*2 = 6 + 10 = 16 ✓
-    const intervals = [2, 2, 3, 2, 2, 3, 2] // sums to 16
     const onsets = [0, 2, 4, 7, 9, 11, 14]
     expect(isMaximallyEven(onsets, 16)).toBe(true)
+  })
+
+  it('rejects clustered gaps even when adjacent gap sizes and counts match', () => {
+    expect(isMaximallyEven([0, 2, 4, 7], 10)).toBe(false) // [2,2,3,3]
+    expect(isMaximallyEven([0, 2, 5, 7], 10)).toBe(true) // [2,3,2,3]
+    // First- and second-order spans pass, but third-order spans do not.
+    expect(isMaximallyEven([0, 1, 3, 4, 6, 8, 10], 12)).toBe(false)
+  })
+
+  it('matches rotations of a mechanical Euclidean rhythm for every pattern up to 10 pulses', () => {
+    for (let L = 1; L <= 10; L++) {
+      for (let k = 1; k <= L; k++) {
+        const base = Array.from({ length: L }, (_, i) =>
+          Math.floor((i + 1) * k / L) - Math.floor(i * k / L))
+        const rotations = new Set<number>()
+        for (let shift = 0; shift < L; shift++) {
+          let mask = 0
+          for (let i = 0; i < L; i++) if (base[i]) mask |= 1 << ((i + shift) % L)
+          rotations.add(mask)
+        }
+        for (let mask = 1; mask < (1 << L); mask++) {
+          const onsets = Array.from({ length: L }, (_, i) => i).filter((i) => mask & (1 << i))
+          if (onsets.length !== k) continue
+          expect(isMaximallyEven(onsets, L), `L=${L}, mask=${mask}`).toBe(rotations.has(mask))
+        }
+      }
+    }
+  })
+})
+
+describe('deepness predicates', () => {
+  it('recognizes Erdős-deep Bossa Nova and the exceptional six-pulse set', () => {
+    expect(isErdosDeep([0, 3, 6, 10, 13], 16)).toBe(true)
+    expect(isErdosDeep([0, 1, 2, 4], 6)).toBe(true)
+    expect(isErdosDeep([0, 4, 8, 12], 16)).toBe(false)
+    expect(isErdosDeep([0, 1, 4], 12)).toBe(false) // three bins of multiplicity 1
+  })
+
+  it('distinguishes Winograd-deepness from Erdős-deepness', () => {
+    expect(isWinogradDeep([0, 2, 4, 5, 7, 9, 11], 12)).toBe(true)
+    expect(isWinogradDeep([0, 1, 2, 4], 6)).toBe(true)
+    expect(isWinogradDeep([0, 3, 6, 10, 13], 16)).toBe(false) // multiple zero bins
+  })
+
+  it('includes zero bins when checking Winograd multiplicities', () => {
+    expect(intervalVector([0, 1], 4)).toEqual([1, 0])
+    expect(isWinogradDeep([0, 1], 4)).toBe(true)
+    expect(isWinogradDeep([0, 1], 6)).toBe(false) // [1,0,0]
+  })
+
+  it('uses vacuous deepness rules for small onset sets and short vectors', () => {
+    for (const onsets of [[], [3], [1, 5]]) expect(isErdosDeep(onsets, 8)).toBe(true)
+    expect(isWinogradDeep([], 1)).toBe(true)
+    expect(isWinogradDeep([], 3)).toBe(true)
+    expect(isWinogradDeep([0], 4)).toBe(false)
+  })
+})
+
+describe('reflection symmetry', () => {
+  it('recognizes axes through pulses, between pulses, and odd cycles', () => {
+    expect(isReflectionSymmetric([0, 2, 6], 8)).toBe(true) // x -> -x
+    expect(isReflectionSymmetric([0, 1, 3, 6], 8)).toBe(true) // x -> 1-x
+    expect(isReflectionSymmetric([0, 2, 5], 7)).toBe(true)
+    expect(isReflectionSymmetric([0, 1, 3], 8)).toBe(false)
+  })
+
+  it('accepts empty, singleton, two-onset, and full patterns', () => {
+    for (const onsets of [[], [3], [1, 4], [0, 1, 2, 3, 4, 5]]) {
+      expect(isReflectionSymmetric(onsets, 6)).toBe(true)
+    }
+  })
+})
+
+describe('primitive rhythms', () => {
+  it('rejects repetitions of shorter motifs, including rotated motifs', () => {
+    expect(isPrimitive([0, 4, 8], 12)).toBe(false)
+    expect(isPrimitive([0, 1, 4, 5, 8, 9], 12)).toBe(false)
+    expect(isPrimitive([1, 2, 5, 6, 9, 10], 12)).toBe(false)
+    expect(isPrimitive([0, 3, 6, 9], 12)).toBe(false)
+  })
+
+  it('accepts non-repeating patterns even when their IOIs share a divisor', () => {
+    expect(isPrimitive([0, 2, 6], 12)).toBe(true)
+    expect(isPrimitive([0, 1, 4], 8)).toBe(true)
+    expect(isPrimitive([5], 12)).toBe(true)
+  })
+
+  it('handles constant rhythms and one-pulse cycles', () => {
+    expect(isPrimitive([], 8)).toBe(false)
+    expect(isPrimitive([0, 1, 2, 3], 4)).toBe(false)
+    expect(isPrimitive([], 1)).toBe(true)
+    expect(isPrimitive([0], 1)).toBe(true)
+  })
+})
+
+describe('structural predicate reference checks', () => {
+  it('matches direct pair counts and all circle transformations up to 8 pulses', () => {
+    for (let L = 1; L <= 8; L++) {
+      for (let mask = 0; mask < (1 << L); mask++) {
+        const bits = Array.from({ length: L }, (_, i) => (mask >> i) & 1)
+        const onsets = bits.flatMap((bit, i) => bit ? [i] : [])
+        const vector = new Array<number>(Math.floor(L / 2)).fill(0)
+        for (let i = 0; i < onsets.length; i++) {
+          for (let j = i + 1; j < onsets.length; j++) {
+            const distance = onsets[j] - onsets[i]
+            vector[Math.min(distance, L - distance) - 1]++
+          }
+        }
+        const expectedCounts = Array.from({ length: Math.max(0, onsets.length - 1) }, (_, i) => i + 1)
+        expect(isErdosDeep(onsets, L)).toBe(
+          vector.filter((v) => v > 0).sort((a, b) => a - b).join(',') === expectedCounts.join(','))
+        expect(isWinogradDeep(onsets, L)).toBe(vector.every((v, i) => vector.indexOf(v) === i))
+        const symmetric = bits.some((_, axis) => bits.every((bit, x) => bit === bits[(axis - x + L) % L]))
+        const repeating = bits.some((_, shift) => shift > 0 && bits.every((bit, x) => bit === bits[(x + shift) % L]))
+        expect(isReflectionSymmetric(onsets, L)).toBe(symmetric)
+        expect(isPrimitive(onsets, L)).toBe(!repeating)
+
+        const rotated = onsets.map((x) => (x + 1) % L).sort((a, b) => a - b)
+        const reflected = onsets.map((x) => (L - x) % L).sort((a, b) => a - b)
+        for (const predicate of [isErdosDeep, isWinogradDeep, isReflectionSymmetric, isPrimitive]) {
+          expect(predicate(rotated, L)).toBe(predicate(onsets, L))
+          expect(predicate(reflected, L)).toBe(predicate(onsets, L))
+        }
+      }
+    }
   })
 })
 

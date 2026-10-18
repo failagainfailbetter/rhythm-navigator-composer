@@ -170,47 +170,11 @@
 
       <div class="glass rounded p-3">
         <div class="text-slate-400 text-xs mb-2">Music Theory Properties</div>
-        <div class="grid grid-cols-2 sm:grid-cols-8 gap-3">
-          <div>
-            <div class="text-slate-400 text-[10px] uppercase">Maximally even</div>
-            <div class="font-mono text-sm" :class="details.predicates.maximallyEven ? 'text-emerald-300' : 'text-slate-400'">
-              {{ details.predicates.maximallyEven ? 'Yes' : 'No' }}
-            </div>
-          </div>
-          <div>
-            <div class="text-slate-400 text-[10px] uppercase">ROP {2,3}</div>
-            <div class="font-mono text-sm" :class="details.predicates.rop23 ? 'text-emerald-300' : 'text-slate-400'">
-              {{ details.predicates.rop23 ? 'Yes' : 'No' }}
-            </div>
-          </div>
-          <div>
-            <div class="text-slate-400 text-[10px] uppercase">Odd-interval oddity</div>
-            <div class="font-mono text-sm" :class="details.predicates.oddIntervalsOddity ? 'text-emerald-300' : 'text-slate-400'">
-              {{ details.predicates.oddIntervalsOddity ? 'Yes' : 'No' }}
-            </div>
-          </div>
-          <div>
-            <div class="text-slate-400 text-[10px] uppercase">No antipodes</div>
-            <div class="font-mono text-sm" :class="details.predicates.noAntipodes ? 'text-emerald-300' : 'text-slate-400'">
-              {{ details.predicates.noAntipodes ? 'Yes' : 'No' }}
-            </div>
-          </div>
-          <div>
-            <div class="text-slate-400 text-[10px] uppercase">Low entropy</div>
-            <div class="font-mono text-sm" :class="details.predicates.lowEntropy ? 'text-emerald-300' : 'text-slate-400'">
-              {{ details.predicates.lowEntropy ? 'Yes' : 'No' }}
-            </div>
-          </div>
-          <div>
-            <div class="text-slate-400 text-[10px] uppercase">No gaps</div>
-            <div class="font-mono text-sm" :class="details.predicates.noGaps ? 'text-emerald-300' : 'text-slate-400'">
-              {{ details.predicates.noGaps ? 'Yes' : 'No' }}
-            </div>
-          </div>
-          <div>
-            <div class="text-slate-400 text-[10px] uppercase">Relatively flat</div>
-            <div class="font-mono text-sm" :class="details.predicates.relativelyFlat ? 'text-emerald-300' : 'text-slate-400'">
-              {{ details.predicates.relativelyFlat ? 'Yes' : 'No' }}
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div v-for="predicate in details.predicates" :key="predicate.id">
+            <div class="text-slate-400 text-[10px] uppercase">{{ predicate.label }}</div>
+            <div class="font-mono text-sm" :class="predicate.result ? 'text-emerald-300' : 'text-slate-400'">
+              {{ predicate.result ? 'Yes' : 'No' }}
             </div>
           </div>
         </div>
@@ -241,7 +205,9 @@ import RhythmCircleView from '@/components/RhythmCircleView.vue'
 import { useRhythmStore } from '@/stores/rhythmStore'
 import { useSequencerStore } from '@/stores/sequencerStore'
 import { canonicalContourFromOnsets, shadowContourFromOnsets } from '@/utils/contour'
-import { circularIntervals, isLowEntropy, hasNoGaps, hasOddIntervalsOddity, hasROP23, isMaximallyEven, noAntipodalPairs, relativelyFlat } from '@/utils/predicates'
+import { circularIntervals } from '@/utils/predicates'
+import { ALL_PREDICATE_IDS, PREDICATE_LABELS, type PredicateId } from '@/types/predicateExpression'
+import { evaluatePredicateTree } from '@/utils/predicateEval'
 import { onsetPatternFromGroupedDigits } from '@/utils/onsets'
 import { parseDigitsFromGroupedString } from '@/utils/relations'
 import { digitsToBits } from '@/utils/rhythm'
@@ -292,15 +258,7 @@ const details = computed(() => {
       iois: [] as number[],
       shadowIsomorphic: false,
       sync: { lhlApprox: 0, offbeatWeighted: 0, onBeatCount: 0, offBeatCount: 0, meanOnsetWeight: 0, maxWeight: 0 },
-      predicates: {
-        maximallyEven: false,
-        rop23: false,
-        oddIntervalsOddity: false,
-        noAntipodes: true,
-        lowEntropy: false,
-        noGaps: false,
-        relativelyFlat: false,
-      }
+      predicates: [] as { id: PredicateId; label: string; result: boolean }[]
     }
   }
 
@@ -330,15 +288,11 @@ const details = computed(() => {
     iois,
     shadowIsomorphic,
     sync,
-    predicates: {
-      maximallyEven: isMaximallyEven(onsets, totalBits),
-      rop23: hasROP23(onsets, totalBits),
-      oddIntervalsOddity: hasOddIntervalsOddity(onsets, totalBits),
-      noAntipodes: noAntipodalPairs(onsets, totalBits),
-      lowEntropy: isLowEntropy(onsets, totalBits),
-      noGaps: hasNoGaps(onsets, totalBits),
-      relativelyFlat: relativelyFlat(onsets, totalBits),
-    }
+    predicates: ALL_PREDICATE_IDS.map((id) => ({
+      id,
+      label: PREDICATE_LABELS[id],
+      result: evaluatePredicateTree({ type: 'predicate', id }, onsets, totalBits),
+    }))
   }
 })
 

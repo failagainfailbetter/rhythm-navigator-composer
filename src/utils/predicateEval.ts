@@ -17,7 +17,11 @@ import {
   isLowEntropy,
   hasNoGaps,
   relativelyFlat,
-  isDuplePartitioned
+  isDuplePartitioned,
+  isErdosDeep,
+  isWinogradDeep,
+  isReflectionSymmetric,
+  isPrimitive
 } from './predicates'
 
 const DEFAULT_CONTOUR_OPTS: ContourOptions = {
@@ -164,6 +168,14 @@ function evaluateLeaf(
       return relativelyFlat(onsets, totalBits)
     case 'duplePartitioned':
       return isDuplePartitioned(onsets, totalBits)
+    case 'erdosDeep':
+      return isErdosDeep(onsets, totalBits)
+    case 'winogradDeep':
+      return isWinogradDeep(onsets, totalBits)
+    case 'reflectionSymmetric':
+      return isReflectionSymmetric(onsets, totalBits)
+    case 'primitive':
+      return isPrimitive(onsets, totalBits)
     default:
       return true
   }
@@ -256,7 +268,10 @@ function explainLeaf(
     }
     case 'maximallyEven':
       result = isMaximallyEven(onsets, totalBits)
-      summary = `Circular intervals: ${formatNumberList(intervals)}.`
+      summary = `Checks every m-onset span against floor(m × ${totalBits} / ${onsets.length}) or ceil(m × ${totalBits} / ${onsets.length}); circular intervals: ${formatNumberList(intervals)}.`
+      if (onsets.length < 2) summary = onsets.length === 0
+        ? 'An empty rhythm is not maximally even.'
+        : 'A single onset is trivially maximally even.'
       break
     case 'rop23':
       result = hasROP23(onsets, totalBits)
@@ -287,6 +302,25 @@ function explainLeaf(
     case 'duplePartitioned':
       result = isDuplePartitioned(onsets, totalBits)
       summary = `Composition intervals: ${formatNumberList(intervals)}.`
+      break
+    case 'erdosDeep':
+      result = isErdosDeep(onsets, totalBits)
+      summary = onsets.length < 2
+        ? 'Fewer than two onsets, so Erdős-deepness is vacuously true.'
+        : `Positive distance multiplicities must be exactly 1 through ${onsets.length - 1}, once each; interval vector: ${formatNumberList(vector)}.`
+      break
+    case 'winogradDeep':
+      result = isWinogradDeep(onsets, totalBits)
+      summary = `All distance multiplicities, including zero bins, must be distinct; interval vector: ${formatNumberList(vector)}.`
+      break
+    case 'reflectionSymmetric':
+      result = isReflectionSymmetric(onsets, totalBits)
+      summary = 'Checks whether some reflection of the circle preserves the actual onset set.'
+      break
+    case 'primitive':
+      result = isPrimitive(onsets, totalBits)
+      summary = `Checks that no rotation by 1 through ${totalBits - 1} pulses preserves the onset set.`
+      if (totalBits === 1) summary = 'A one-pulse cycle has no nonzero rotation and is primitive.'
       break
     default:
       result = true

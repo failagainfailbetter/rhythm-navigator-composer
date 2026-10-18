@@ -1,8 +1,51 @@
 import { describe, expect, it } from 'vitest'
-import type { PredicateGroup } from '@/types/predicateExpression'
+import { ALL_PREDICATE_IDS, PREDICATE_LABELS, type PredicateGroup, type PredicateId } from '@/types/predicateExpression'
 import { evaluatePredicateTree, explainPredicateTree, flattenPredicateTrace } from './predicateEval'
 
 describe('predicate explanation', () => {
+  it.each<[PredicateId, number[], number, boolean]>([
+    ['erdosDeep', [0, 3, 6, 10, 13], 16, true],
+    ['erdosDeep', [0, 4, 8, 12], 16, false],
+    ['winogradDeep', [0, 1, 2, 4], 6, true],
+    ['winogradDeep', [0, 3, 6, 10, 13], 16, false],
+    ['reflectionSymmetric', [0, 1, 3, 6], 8, true],
+    ['reflectionSymmetric', [0, 1, 3], 8, false],
+    ['primitive', [0, 1, 3], 8, true],
+    ['primitive', [0, 2, 4, 6], 8, false],
+    ['maximallyEven', [0, 2, 4, 7], 10, false],
+    ['maximallyEven', [0, 2, 5, 7], 10, true],
+  ])('evaluates and explains %s on %j', (id, onsets, L, expected) => {
+    const node = { type: 'predicate' as const, id }
+    expect(ALL_PREDICATE_IDS).toContain(id)
+    expect(evaluatePredicateTree(node, onsets, L)).toBe(expected)
+    expect(explainPredicateTree(node, onsets, L)).toMatchObject({
+      id,
+      label: PREDICATE_LABELS[id],
+      result: expected,
+    })
+    const trace = flattenPredicateTrace(explainPredicateTree(node, onsets, L))[0]
+    expect(trace.summary).not.toBe('No explanation available.')
+  })
+
+  it('combines new predicates in nested AND/OR filters with short-circuit explanations', () => {
+    const node: PredicateGroup = {
+      type: 'and',
+      children: [
+        { type: 'predicate', id: 'primitive' },
+        { type: 'or', children: [
+          { type: 'predicate', id: 'winogradDeep' },
+          { type: 'predicate', id: 'erdosDeep' },
+        ] },
+        { type: 'predicate', id: 'reflectionSymmetric' },
+      ],
+    }
+    expect(evaluatePredicateTree(node, [0, 3, 6, 10, 13], 16)).toBe(true)
+    expect(explainPredicateTree(node, [0, 3, 6, 10, 13], 16).result).toBe(true)
+    const trace = explainPredicateTree(node, [0, 4, 8, 12], 16)
+    expect(trace).toMatchObject({ result: false, shortCircuited: true })
+    expect(flattenPredicateTrace(trace)).toHaveLength(1)
+  })
+
   it('matches the boolean evaluator for nested groups', () => {
     const node: PredicateGroup = {
       type: 'and',

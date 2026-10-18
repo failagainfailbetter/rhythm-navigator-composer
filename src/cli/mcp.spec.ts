@@ -17,6 +17,38 @@ function createRegistrar(tools: RegisteredTool[]) {
 }
 
 describe('registerMcpTools', () => {
+  it('lists the new structural predicates', async () => {
+    const tools: RegisteredTool[] = []
+    registerMcpTools(createRegistrar(tools) as any)
+    const response = await tools.find(tool => tool.name === 'list_predicates')!.handler({})
+    const { predicates } = JSON.parse(response.content[0].text)
+    expect(predicates).toEqual(expect.arrayContaining([
+      { id: 'erdosDeep', label: 'Erdős-deep' },
+      { id: 'winogradDeep', label: 'Winograd-deep' },
+      { id: 'reflectionSymmetric', label: 'Reflection-symmetric' },
+      { id: 'primitive', label: 'Primitive (non-repeating)' },
+    ]))
+  })
+
+  it.each([
+    ['erdosDeep', '111000', '101010'],
+    ['winogradDeep', '111010', '101010'],
+    ['reflectionSymmetric', '111000', '110100'],
+    ['primitive', '110100', '101010'],
+    ['maximallyEven', '101010', '110100'],
+  ])('filters enumerated rhythms with %s', async (id, accepted, rejected) => {
+    const tools: RegisteredTool[] = []
+    registerMcpTools(createRegistrar(tools) as any)
+    const response = await tools.find(tool => tool.name === 'enumerate_rhythms')!.handler({
+      mode: 'binary', numerator: 6, denominator: 1,
+      maxResults: 0, predicates: [id], retentionProbability: 100,
+    })
+    const payload = JSON.parse(response.content[0].text)
+    const patterns = payload.items.map((item: { pattern: string }) => item.pattern.replace(/\s/g, ''))
+    expect(patterns).toContain(accepted)
+    expect(patterns).not.toContain(rejected)
+  })
+
   it('registers the matrix generation tool', () => {
     const tools: RegisteredTool[] = []
 

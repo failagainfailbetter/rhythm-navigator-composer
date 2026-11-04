@@ -27,6 +27,8 @@ describe('registerMcpTools', () => {
       { id: 'winogradDeep', label: 'Winograd-deep' },
       { id: 'reflectionSymmetric', label: 'Reflection-symmetric' },
       { id: 'primitive', label: 'Primitive (non-repeating)' },
+      { id: 'metricalConflict', label: 'Metrical alignment conflict' },
+      { id: 'sharedOmission', label: 'Shared missing beat' },
     ]))
   })
 
@@ -36,11 +38,13 @@ describe('registerMcpTools', () => {
     ['reflectionSymmetric', '111000', '110100'],
     ['primitive', '110100', '101010'],
     ['maximallyEven', '101010', '110100'],
+    ['metricalConflict', '10010010', '10101010'],
+    ['sharedOmission', '11110000', '11100100'],
   ])('filters enumerated rhythms with %s', async (id, accepted, rejected) => {
     const tools: RegisteredTool[] = []
     registerMcpTools(createRegistrar(tools) as any)
     const response = await tools.find(tool => tool.name === 'enumerate_rhythms')!.handler({
-      mode: 'binary', numerator: 6, denominator: 1,
+      mode: 'binary', numerator: accepted.length, denominator: 1,
       maxResults: 0, predicates: [id], retentionProbability: 100,
     })
     const payload = JSON.parse(response.content[0].text)

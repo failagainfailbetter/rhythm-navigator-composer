@@ -21,7 +21,10 @@ import {
   isErdosDeep,
   isWinogradDeep,
   isReflectionSymmetric,
-  isPrimitive
+  isPrimitive,
+  isPureDupleCycleLength,
+  hasMetricalConflict,
+  hasSharedOmission
 } from './predicates'
 
 const DEFAULT_CONTOUR_OPTS: ContourOptions = {
@@ -176,6 +179,10 @@ function evaluateLeaf(
       return isReflectionSymmetric(onsets, totalBits)
     case 'primitive':
       return isPrimitive(onsets, totalBits)
+    case 'metricalConflict':
+      return hasMetricalConflict(onsets, totalBits)
+    case 'sharedOmission':
+      return hasSharedOmission(onsets, totalBits)
     default:
       return true
   }
@@ -321,6 +328,18 @@ function explainLeaf(
       result = isPrimitive(onsets, totalBits)
       summary = `Checks that no rotation by 1 through ${totalBits - 1} pulses preserves the onset set.`
       if (totalBits === 1) summary = 'A one-pulse cycle has no nonzero rotation and is primitive.'
+      break
+    case 'metricalConflict':
+      result = hasMetricalConflict(onsets, totalBits)
+      summary = isPureDupleCycleLength(totalBits)
+        ? 'Checks h1 × h2 × h3 < 0: no rotation simultaneously maximizes level-1 and level-2 onbeatness. Ties do not count as conflict.'
+        : 'Requires a power-of-two cycle length of at least 4 pulses.'
+      break
+    case 'sharedOmission':
+      result = hasSharedOmission(onsets, totalBits)
+      summary = isPureDupleCycleLength(totalBits)
+        ? 'Checks for an empty beat b = 0 mod 4 with onsets at b−1 and b−2, wrapping around the cycle. Position 0 anchors the meter; contour invariance settings do not rotate it.'
+        : 'Requires a power-of-two cycle length of at least 4 pulses.'
       break
     default:
       result = true

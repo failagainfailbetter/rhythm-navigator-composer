@@ -175,7 +175,7 @@ npx rhythm-navigator mcp
 | `--max-attempts <n>` | *(sample only)* Maximum random trials | `1000000` |
 | `--pretty` | Pretty-print JSON output | off |
 
-Available predicate IDs: `isomorphic`, `maximallyEven`, `rop23`, `odd-intervals`, `no-antipodes`, `lowEntropy`, `noGaps`, `relativelyFlat`, `duplePartitioned`, `erdosDeep`, `winogradDeep`, `reflectionSymmetric`, `primitive`.
+Available predicate IDs: `isomorphic`, `maximallyEven`, `rop23`, `odd-intervals`, `no-antipodes`, `lowEntropy`, `noGaps`, `relativelyFlat`, `duplePartitioned`, `erdosDeep`, `winogradDeep`, `reflectionSymmetric`, `primitive`, `metricalConflict`, `sharedOmission`.
 
 The `maximallyEven` predicate checks every span of consecutive circular onset
 intervals: each m-interval span must equal floor(m × L / k) or ceil(m × L / k),
@@ -197,6 +197,25 @@ Deepness follows [The Distance Geometry of Deep Rhythms and Scales](https://cgm.
 The `duplePartitioned` predicate accepts a circular interval sequence if the complete
 forward or reversed sequence passes: an interval may increase only when the sum of
 all preceding intervals in that direction is a power of two.
+
+Two Hadamard-inspired metrical predicates are also available in the filter editor,
+rhythm analysis and theory columns, CLI, and MCP tools. Both require a power-of-two
+cycle length of at least four pulses; unsupported lengths return false.
+
+| ID | Acceptance rule |
+|---|---|
+| `metricalConflict` | No rotation simultaneously maximizes level-1 and level-2 onbeatness. Equivalently, h1 × h2 × h3 < 0 in the unnormalized, naturally ordered Walsh-Hadamard transform. Ties do not count as conflict. Rotation-invariant; for example, tresillo `10010010` passes and `10101010` fails. |
+| `sharedOmission` | Some empty position b, with b = 0 mod 4, has onsets at both b−1 and b−2, using cyclic indices. The two subdivision scales share a missing beat: `11110000` passes, while `11100100` fails despite identical levelwise onbeatness and onset/omission-pair counts. |
+
+`sharedOmission` uses position 0 as the fixed metrical origin. Rotating a rhythm can
+change its result; contour circularity, rotation, and reflection settings do not
+change this origin. Both predicates describe onset structure; neither is a
+validated claim about perceived syncopation or ambiguity.
+
+```bash
+npx rhythm-navigator enumerate --mode binary --numerator 8 --denominator 1 --predicates metricalConflict
+npx rhythm-navigator enumerate --mode binary --numerator 8 --denominator 1 --predicates sharedOmission
+```
 
 ## MCP Server (VS Code / Copilot Chat integration)
 

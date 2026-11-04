@@ -21,6 +21,8 @@ export type PredicateId =
   | 'winogradDeep'
   | 'reflectionSymmetric'
   | 'primitive'
+  | 'metricalConflict'
+  | 'sharedOmission'
 
 export interface PredicateLeaf {
   type: 'predicate'
@@ -48,7 +50,9 @@ export const ALL_PREDICATE_IDS: PredicateId[] = [
   'erdosDeep',
   'winogradDeep',
   'reflectionSymmetric',
-  'primitive'
+  'primitive',
+  'metricalConflict',
+  'sharedOmission'
 ]
 
 /** Human-readable labels for each predicate. */
@@ -65,7 +69,9 @@ export const PREDICATE_LABELS: Record<PredicateId, string> = {
   'erdosDeep': 'Erdős-deep',
   'winogradDeep': 'Winograd-deep',
   'reflectionSymmetric': 'Reflection-symmetric',
-  'primitive': 'Primitive (non-repeating)'
+  'primitive': 'Primitive (non-repeating)',
+  'metricalConflict': 'Metrical alignment conflict',
+  'sharedOmission': 'Shared missing beat'
 }
 
 /** Default expression: AND( isomorphic ). */

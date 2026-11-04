@@ -14,6 +14,12 @@ describe('predicate explanation', () => {
     ['primitive', [0, 2, 4, 6], 8, false],
     ['maximallyEven', [0, 2, 4, 7], 10, false],
     ['maximallyEven', [0, 2, 5, 7], 10, true],
+    ['metricalConflict', [0, 3, 6], 8, true],
+    ['metricalConflict', [0, 2, 4, 6], 8, false],
+    ['metricalConflict', [0, 1, 2], 6, false],
+    ['sharedOmission', [0, 1, 2, 3], 8, true],
+    ['sharedOmission', [0, 1, 2, 5], 8, false],
+    ['sharedOmission', [2, 3], 6, false],
   ])('evaluates and explains %s on %j', (id, onsets, L, expected) => {
     const node = { type: 'predicate' as const, id }
     expect(ALL_PREDICATE_IDS).toContain(id)
@@ -67,6 +73,38 @@ describe('predicate explanation', () => {
     expect(explainPredicateTree(node, onsets, totalBits).result).toBe(
       evaluatePredicateTree(node, onsets, totalBits)
     )
+  })
+
+  it('combines metrical predicates in nested filters', () => {
+    const node: PredicateGroup = {
+      type: 'and',
+      children: [
+        { type: 'predicate', id: 'metricalConflict' },
+        { type: 'or', children: [
+          { type: 'predicate', id: 'sharedOmission' },
+          { type: 'predicate', id: 'maximallyEven' },
+        ] },
+      ],
+    }
+    expect(evaluatePredicateTree(node, [1, 2, 3], 8)).toBe(true)
+    expect(explainPredicateTree(node, [1, 2, 3], 8)).toMatchObject({ result: true })
+    const trace = explainPredicateTree(node, [0, 2, 4, 6], 8)
+    expect(trace).toMatchObject({ result: false, shortCircuited: true })
+    expect(flattenPredicateTrace(trace)).toHaveLength(1)
+  })
+
+  it('keeps the shared-omission meter fixed for every contour option', () => {
+    const node = { type: 'predicate' as const, id: 'sharedOmission' as const }
+    for (const circular of [false, true]) {
+      for (const rotationInvariant of [false, true]) {
+        for (const reflectionInvariant of [false, true]) {
+          const opts = { circular, rotationInvariant, reflectionInvariant }
+          expect(evaluatePredicateTree(node, [0, 1, 2, 3], 8, opts)).toBe(true)
+          expect(evaluatePredicateTree(node, [0, 1, 2, 7], 8, opts)).toBe(false)
+          expect(explainPredicateTree(node, [0, 1, 2, 7], 8, opts)).toMatchObject({ result: false })
+        }
+      }
+    }
   })
 
   it('flattens evaluated leaves in order', () => {

@@ -343,6 +343,53 @@ export function isPrimitive(onsets: number[], L: number): boolean {
   return true
 }
 
+/** Cycle-length domain for the two Hadamard-inspired metrical predicates. */
+export function isPureDupleCycleLength(L: number): boolean {
+  return Number.isSafeInteger(L) && L >= 4 && 2 ** Math.round(Math.log2(L)) === L
+}
+
+/**
+ * No rotation simultaneously maximizes level-1 and level-2 onbeatness.
+ * Equivalently, h1 * h2 * h3 < 0 in the unnormalized, naturally ordered
+ * Walsh-Hadamard transform. Zero coefficients are ties and do not conflict.
+ * Rotation-invariant; independent of contour options. Unsupported lengths
+ * return false. Onsets must be distinct integers within [0, L).
+ */
+export function hasMetricalConflict(onsets: number[], L: number): boolean {
+  if (!isPureDupleCycleLength(L)) return false
+
+  let h1 = 0
+  let h2 = 0
+  let h3 = 0
+  for (const onset of onsets) {
+    const residue = onset % 4
+    h1 += residue % 2 === 0 ? 1 : -1
+    h2 += residue < 2 ? 1 : -1
+    h3 += residue === 0 || residue === 3 ? 1 : -1
+  }
+  return h1 * h2 * h3 < 0
+}
+
+/**
+ * Some empty beat b = 0 mod 4 has onsets at both b-1 and b-2 (mod L):
+ * fine- and coarse-level onset/omission pairs share the same missing beat.
+ * Position 0 anchors the meter; rotating the onset set can change the result.
+ * Unsupported lengths return false. Uses the same onset contract as above.
+ */
+export function hasSharedOmission(onsets: number[], L: number): boolean {
+  if (!isPureDupleCycleLength(L)) return false
+
+  const onsetSet = new Set(onsets)
+  // Only an onset immediately before a multiple of four can be a witness.
+  // Iterating onsets avoids scanning a potentially sparse, long cycle.
+  for (const onset of onsets) {
+    if (onset % 4 !== 3) continue
+    const beat = (onset + 1) % L
+    if (!onsetSet.has(beat) && onsetSet.has(onset - 1)) return true
+  }
+  return false
+}
+
 /**
  * HasNoGaps: the non-zero entries of the interval vector (IOI histogram) occupy
  * a single consecutive block of indices. Single non-zero bin counts as true.
